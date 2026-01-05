@@ -1,0 +1,35 @@
+# FastAPI (backend 코드 의존성)
+fastapi>=0.104.0
+python-multipart>=0.0.6
+
+# Celery
+celery>=5.3.0
+redis>=5.0.0
+
+# HTTP Client (VLM API 호출)
+httpx>=0.25.0
+
+# OCR (fallback)
+pytesseract>=0.3.10
+
+# PDF/Image Processing
+pdf2image>=1.16.0
+Pillow>=10.0.0
+PyMuPDF>=1.23.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# Storage
+minio>=7.2.0
+
+# Config
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0
+
+# Utils
+pytz>=2023.3
+alembic>=1.12.0
+qdrant-client>=1.7.0

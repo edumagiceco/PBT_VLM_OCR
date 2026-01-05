@@ -1,0 +1,227 @@
+version: '3.8'
+
+services:
+  # =========================================
+  # Frontend - Next.js
+  # =========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    # API URL은 프론트엔드에서 동적으로 감지 (브라우저 호스트 사용)
+    depends_on:
+      - backend
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Backend - FastAPI
+  # =========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pbt_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      # MINIO_EXTERNAL_ENDPOINT는 백엔드 프록시 사용으로 불필요
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=pbt-ocr-documents
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - qdrant
+    volumes:
+      - ./backend:/app
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Worker - Fast OCR (CPU, Tesseract)
+  # =========================================
+  worker-fast-ocr:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker -Q fast_ocr -c 4 --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pbt_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    volumes:
+      - ./backend:/app
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Worker - Accurate OCR (CPU, PaddleOCR)
+  # =========================================
+  worker-accurate-ocr:
+    build:
+      context: ./workers/accurate_ocr
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker -Q accurate_ocr -c 2 --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pbt_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    volumes:
+      - ./backend:/app
+      - ./workers/accurate_ocr:/app/workers/accurate_ocr
+    networks:
+      - pbt-network
+
+  # =========================================
+  # VLM OCR Server (GPU)
+  # Qwen3-VL-30B-A3B (MoE) for document OCR
+  # =========================================
+  chandra-vllm:
+    build:
+      context: ./workers/precision_ocr
+      dockerfile: Dockerfile.vllm
+    ports:
+      - "8080:8000"
+    environment:
+      - VLM_API_BASE=http://0.0.0.0:8000/v1
+      - VLM_MODEL_NAME=qwen3-vl
+      - MAX_OUTPUT_TOKENS=4096
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - chandra_models:/root/.cache/huggingface
+    networks:
+      - pbt-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # =========================================
+  # Worker - Precision OCR (GPU)
+  # =========================================
+  worker-precision-ocr:
+    build:
+      context: ./workers/precision_ocr
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app worker -Q precision_ocr -c 1 --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pbt_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - VLM_API_BASE=http://chandra-vllm:8000/v1
+      - VLLM_API_BASE=http://chandra-vllm:8000/v1
+      - VLM_MODEL_NAME=qwen3-vl
+    depends_on:
+      chandra-vllm:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - ./workers/precision_ocr:/app/workers/precision_ocr
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Database - PostgreSQL
+  # =========================================
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pbt_ocr
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Cache/Queue - Redis
+  # =========================================
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Object Storage - MinIO
+  # =========================================
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - pbt-network
+
+  # =========================================
+  # Vector Database - Qdrant
+  # =========================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - pbt-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  qdrant_data:
+  chandra_models:
+
+networks:
+  pbt-network:
+    driver: bridge

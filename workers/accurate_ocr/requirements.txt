@@ -1,0 +1,23 @@
+# PaddleOCR Worker 의존성
+
+# Core
+celery==5.3.6
+redis==5.0.1
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+pydantic==2.5.2
+pydantic-settings==2.1.0
+fastapi>=0.104.0
+python-multipart>=0.0.6
+
+# OCR - PaddlePaddle 3.x + PaddleOCR
+paddlepaddle>=3.0.0
+paddleocr>=2.9.0
+
+# Image processing
+Pillow>=10.0.0
+pdf2image>=1.16.0
+numpy>=1.24.0
+
+# Storage
+minio==7.2.0

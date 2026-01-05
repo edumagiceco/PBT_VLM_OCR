@@ -1,0 +1,24 @@
+# Celery
+celery>=5.3.0
+redis>=5.0.0
+
+# OCR
+pytesseract>=0.3.10
+paddleocr>=2.7.0
+paddlepaddle>=2.5.0
+
+# PDF/Image Processing
+pdf2image>=1.16.0
+Pillow>=10.0.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# Storage
+minio>=7.2.0
+
+# Config
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-dotenv>=1.0.0

@@ -1,0 +1,42 @@
+# VLM OCR Server Dockerfile
+# vLLM 기반 GPU 추론 서버
+#
+# 지원 GPU: NVIDIA RTX 3090 (24GB VRAM)
+# 모델: Qwen3-VL-8B-Instruct (Dense Vision-Language Model)
+#       - 총 파라미터: 80억 개
+#       - 모델 크기: ~16GB (BF16)
+#       - OCR 32개 언어 지원 (한국어 포함)
+
+# vLLM latest version with Qwen3-VL support
+FROM vllm/vllm-openai:latest
+
+# Install additional dependencies for Qwen3-VL
+RUN pip3 install --no-cache-dir --upgrade \
+    qwen-vl-utils==0.0.14
+
+# Environment variables
+ENV HF_HOME=/root/.cache/huggingface
+ENV VLLM_USE_V1=0
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=600s --retries=10 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose vLLM server port
+EXPOSE 8000
+
+# Start vLLM server (vLLM v0.13+ format)
+# - Qwen3-VL-8B-Instruct: Dense Vision-Language 모델
+# - RTX 3090 24GB 최적화 설정
+# - 한국어 포함 32개 언어 OCR 지원
+ENTRYPOINT ["vllm", "serve"]
+CMD ["Qwen/Qwen3-VL-8B-Instruct", \
+     "--served-model-name", "qwen3-vl", \
+     "--dtype", "bfloat16", \
+     "--max-model-len", "4096", \
+     "--max-num-seqs", "2", \
+     "--gpu-memory-utilization", "0.92", \
+     "--swap-space", "4", \
+     "--trust-remote-code", \
+     "--host", "0.0.0.0", \
+     "--port", "8000"]
