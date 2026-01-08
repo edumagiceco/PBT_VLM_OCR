@@ -17,15 +17,17 @@ from app.schemas.document import DocumentCreate, DocumentUpdate, BlockUpdate, Do
 from app.services.storage_service import storage_service
 
 
-def _get_ocr_queue(ocr_mode: OCRMode) -> str:
+def _get_ocr_queue(ocr_mode) -> str:
     """OCR 모드에 따른 Celery 큐 선택"""
+    # 문자열 또는 OCRMode enum 모두 처리
+    mode_str = ocr_mode.value if isinstance(ocr_mode, OCRMode) else str(ocr_mode).lower()
     queue_mapping = {
-        OCRMode.FAST: "fast_ocr",
-        OCRMode.ACCURATE: "accurate_ocr",
-        OCRMode.PRECISION: "precision_ocr",
-        OCRMode.AUTO: "fast_ocr",  # AUTO는 기본적으로 fast 큐로, 태스크에서 재결정
+        "fast": "fast_ocr",
+        "accurate": "accurate_ocr",
+        "precision": "precision_ocr",
+        "auto": "fast_ocr",  # AUTO는 기본적으로 fast 큐로, 태스크에서 재결정
     }
-    return queue_mapping.get(ocr_mode, "fast_ocr")
+    return queue_mapping.get(mode_str, "fast_ocr")
 
 
 async def create_document(

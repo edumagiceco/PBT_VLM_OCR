@@ -323,10 +323,10 @@ def _process_precision_ocr(db: Session, document: Document):
             except ImportError:
                 pass
 
-    # Chandra가 없으면 일반 OCR로 대체
+    # Chandra가 없으면 빠른 OCR로 대체
     if not chandra_available:
-        print(f"[INFO] Precision OCR not available, falling back to general OCR for document {document.id}")
-        _process_general_ocr(db, document)
+        print(f"[INFO] Precision OCR not available, falling back to fast OCR for document {document.id}")
+        _process_fast_ocr(db, document)
         return
 
     # Chandra 프로세서 초기화

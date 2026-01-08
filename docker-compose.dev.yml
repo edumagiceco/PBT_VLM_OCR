@@ -54,7 +54,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.core.celery_app worker -Q general_ocr,precision_ocr -c 2 --loglevel=info
+    command: celery -A app.core.celery_app worker -Q fast_ocr,accurate_ocr,precision_ocr -c 2 --loglevel=info
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/pbt_ocr
       - REDIS_URL=redis://redis:6379/0
@@ -67,6 +67,7 @@ services:
       - minio
     volumes:
       - ./backend:/app
+      - ./workers:/app/workers
     networks:
       - pbt-network
 

@@ -1,32 +1,55 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Download, Trash2, RefreshCw, Eye } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { documentApi } from '@/lib/api';
 import type { Document, DocumentStatus } from '@/types/document';
 
-const statusColors: Record<DocumentStatus, string> = {
+const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   processing: 'bg-blue-100 text-blue-800',
   completed: 'bg-green-100 text-green-800',
   failed: 'bg-red-100 text-red-800',
   review: 'bg-purple-100 text-purple-800',
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  PROCESSING: 'bg-blue-100 text-blue-800',
+  COMPLETED: 'bg-green-100 text-green-800',
+  FAILED: 'bg-red-100 text-red-800',
+  REVIEW: 'bg-purple-100 text-purple-800',
 };
 
-const statusLabels: Record<DocumentStatus, string> = {
+const statusLabels: Record<string, string> = {
   pending: '대기 중',
   processing: '처리 중',
   completed: '완료',
   failed: '실패',
   review: '검수 필요',
+  PENDING: '대기 중',
+  PROCESSING: '처리 중',
+  COMPLETED: '완료',
+  FAILED: '실패',
+  REVIEW: '검수 필요',
 };
 
 export default function DocumentList() {
   const router = useRouter();
   const { documents, loading, error, fetchDocuments, deleteDocument } = useDocuments();
   const [search, setSearch] = useState('');
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭시 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchDocuments();
@@ -45,6 +68,11 @@ export default function DocumentList() {
 
   const handleDownload = (doc: Document, format: 'md' | 'json' | 'html') => {
     window.open(documentApi.getDownloadUrl(doc.id, format), '_blank');
+    setOpenDropdownId(null);
+  };
+
+  const toggleDropdown = (docId: number) => {
+    setOpenDropdownId(prev => prev === docId ? null : docId);
   };
 
   if (loading && !documents) {
@@ -165,34 +193,37 @@ export default function DocumentList() {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      {doc.status === 'completed' && (
-                        <div className="relative group">
+                      {doc.status.toLowerCase() === 'completed' && (
+                        <div className="relative" ref={openDropdownId === doc.id ? dropdownRef : null}>
                           <button
+                            onClick={() => toggleDropdown(doc.id)}
                             className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded"
                             title="다운로드"
                           >
                             <Download className="w-4 h-4" />
                           </button>
-                          <div className="absolute right-0 mt-1 bg-white border rounded-lg shadow-lg hidden group-hover:block z-10">
-                            <button
-                              onClick={() => handleDownload(doc, 'md')}
-                              className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-50"
-                            >
-                              Markdown
-                            </button>
-                            <button
-                              onClick={() => handleDownload(doc, 'json')}
-                              className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-50"
-                            >
-                              JSON
-                            </button>
-                            <button
-                              onClick={() => handleDownload(doc, 'html')}
-                              className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-50"
-                            >
-                              HTML
-                            </button>
-                          </div>
+                          {openDropdownId === doc.id && (
+                            <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-10 min-w-[120px]">
+                              <button
+                                onClick={() => handleDownload(doc, 'md')}
+                                className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100 rounded-t-lg"
+                              >
+                                Markdown
+                              </button>
+                              <button
+                                onClick={() => handleDownload(doc, 'json')}
+                                className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
+                              >
+                                JSON
+                              </button>
+                              <button
+                                onClick={() => handleDownload(doc, 'html')}
+                                className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100 rounded-b-lg"
+                              >
+                                HTML
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                       <button

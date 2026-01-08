@@ -143,9 +143,18 @@ class StorageService:
         Returns:
             저장된 이미지 경로
         """
+        save_image = image
+        # JPEG 포맷인 경우 RGBA를 RGB로 변환
+        if format.upper() == "JPEG" and image.mode == 'RGBA':
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[3])
+            save_image = background
+        elif format.upper() == "JPEG" and image.mode != 'RGB':
+            save_image = image.convert('RGB')
+
         # 이미지를 바이트로 변환
         buffer = BytesIO()
-        image.save(buffer, format=format)
+        save_image.save(buffer, format=format)
         buffer.seek(0)
 
         # 객체 이름 생성
@@ -179,6 +188,14 @@ class StorageService:
         # 썸네일 생성
         thumbnail = image.copy()
         thumbnail.thumbnail(size, Image.Resampling.LANCZOS)
+
+        # RGBA 이미지인 경우 RGB로 변환 (JPEG는 알파 채널 미지원)
+        if thumbnail.mode == 'RGBA':
+            background = Image.new('RGB', thumbnail.size, (255, 255, 255))
+            background.paste(thumbnail, mask=thumbnail.split()[3])
+            thumbnail = background
+        elif thumbnail.mode != 'RGB':
+            thumbnail = thumbnail.convert('RGB')
 
         # 이미지를 바이트로 변환
         buffer = BytesIO()

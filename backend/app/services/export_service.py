@@ -35,14 +35,16 @@ async def _export_markdown(document: Document) -> str:
     if document.department:
         lines.append(f"**부서**: {document.department}\n")
 
-    lines.append(f"**OCR 모드**: {document.ocr_mode.value}\n")
+    ocr_mode = document.ocr_mode.value if hasattr(document.ocr_mode, 'value') else document.ocr_mode
+    lines.append(f"**OCR 모드**: {ocr_mode}\n")
     lines.append("---\n")
 
     for page in sorted(document.pages, key=lambda p: p.page_no):
         lines.append(f"\n## Page {page.page_no}\n")
 
         for block in sorted(page.blocks, key=lambda b: b.block_order):
-            if block.block_type.value == "table" and block.table_json:
+            block_type = block.block_type.value if hasattr(block.block_type, 'value') else block.block_type
+            if block_type.upper() == "TABLE" and block.table_json:
                 lines.append(_table_to_markdown(block.table_json))
             elif block.text:
                 lines.append(f"{block.text}\n")
@@ -58,7 +60,7 @@ async def _export_json(document: Document) -> str:
             "title": document.title,
             "department": document.department,
             "doc_type": document.doc_type,
-            "ocr_mode": document.ocr_mode.value,
+            "ocr_mode": document.ocr_mode.value if hasattr(document.ocr_mode, 'value') else document.ocr_mode,
             "page_count": document.page_count,
         },
         "pages": [],
@@ -74,8 +76,9 @@ async def _export_json(document: Document) -> str:
         }
 
         for block in sorted(page.blocks, key=lambda b: b.block_order):
+            block_type = block.block_type.value if hasattr(block.block_type, 'value') else block.block_type
             page_data["blocks"].append({
-                "type": block.block_type.value,
+                "type": block_type,
                 "bbox": block.bbox,
                 "text": block.text,
                 "table": block.table_json,
@@ -110,7 +113,8 @@ async def _export_html(document: Document) -> str:
     if document.department:
         html_parts.append(f"<p><strong>부서</strong>: {document.department}</p>")
 
-    html_parts.append(f"<p><strong>OCR 모드</strong>: {document.ocr_mode.value}</p>")
+    ocr_mode = document.ocr_mode.value if hasattr(document.ocr_mode, 'value') else document.ocr_mode
+    html_parts.append(f"<p><strong>OCR 모드</strong>: {ocr_mode}</p>")
     html_parts.append("<hr>")
 
     for page in sorted(document.pages, key=lambda p: p.page_no):
@@ -118,7 +122,8 @@ async def _export_html(document: Document) -> str:
         html_parts.append(f"<h2>Page {page.page_no}</h2>")
 
         for block in sorted(page.blocks, key=lambda b: b.block_order):
-            if block.block_type.value == "table" and block.table_json:
+            block_type = block.block_type.value if hasattr(block.block_type, 'value') else block.block_type
+            if block_type.upper() == "TABLE" and block.table_json:
                 html_parts.append(_table_to_html(block.table_json))
             elif block.text:
                 html_parts.append(f"<p>{block.text}</p>")

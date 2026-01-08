@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # VLM Settings (for GPU-based Precision OCR)
     VLM_API_BASE: str = "http://localhost:8080/v1"
-    VLM_MODEL_NAME: str = "chandra"
+    VLM_MODEL_NAME: str = "qwen3-vl"
     VLM_MAX_TOKENS: int = 8192
     VLM_TIMEOUT: int = 120  # seconds
 

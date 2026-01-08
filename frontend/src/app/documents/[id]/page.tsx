@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, RefreshCw, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { documentApi } from '@/lib/api';
@@ -29,15 +29,34 @@ export default function DocumentDetailPage() {
   const [selectedPageNo, setSelectedPageNo] = useState(1);
   const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchDocument();
   }, [fetchDocument]);
 
+  // 외부 클릭시 다운로드 메뉴 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+        setShowDownloadMenu(false);
+      }
+    };
+    window.document.addEventListener('mousedown', handleClickOutside);
+    return () => window.document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleDownload = (format: 'md' | 'json' | 'html') => {
+    window.open(documentApi.getDownloadUrl(documentId, format), '_blank');
+    setShowDownloadMenu(false);
+  };
+
   const handleReprocess = async () => {
     if (!confirm('OCR을 다시 처리하시겠습니까?')) return;
     try {
       await reprocessDocument();
+      router.push('/');
     } catch (err) {
       alert('재처리 요청 실패');
     }
@@ -130,31 +149,36 @@ export default function DocumentDetailPage() {
                 <RefreshCw className={`w-4 h-4 ${updating ? 'animate-spin' : ''}`} />
                 재처리
               </button>
-              <div className="relative group">
-                <button className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <div className="relative" ref={downloadMenuRef}>
+                <button
+                  onClick={() => setShowDownloadMenu(prev => !prev)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
                   <Download className="w-4 h-4" />
                   다운로드
                 </button>
-                <div className="absolute right-0 mt-1 bg-white border rounded-lg shadow-lg hidden group-hover:block min-w-[120px]">
-                  <a
-                    href={documentApi.getDownloadUrl(documentId, 'md')}
-                    className="block px-4 py-2 text-sm hover:bg-gray-50"
-                  >
-                    Markdown
-                  </a>
-                  <a
-                    href={documentApi.getDownloadUrl(documentId, 'json')}
-                    className="block px-4 py-2 text-sm hover:bg-gray-50"
-                  >
-                    JSON
-                  </a>
-                  <a
-                    href={documentApi.getDownloadUrl(documentId, 'html')}
-                    className="block px-4 py-2 text-sm hover:bg-gray-50"
-                  >
-                    HTML
-                  </a>
-                </div>
+                {showDownloadMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-20 min-w-[120px]">
+                    <button
+                      onClick={() => handleDownload('md')}
+                      className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100 rounded-t-lg"
+                    >
+                      Markdown
+                    </button>
+                    <button
+                      onClick={() => handleDownload('json')}
+                      className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100"
+                    >
+                      JSON
+                    </button>
+                    <button
+                      onClick={() => handleDownload('html')}
+                      className="block w-full px-4 py-2 text-sm text-left hover:bg-gray-100 rounded-b-lg"
+                    >
+                      HTML
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -100,7 +100,7 @@ Extract the document content:"""
     def __init__(
         self,
         api_base: str = "http://localhost:8080/v1",
-        model_name: str = "chandra",
+        model_name: str = "qwen3-vl",
         max_tokens: int = 8192,
         timeout: int = 120,
     ):
@@ -260,7 +260,7 @@ class ChandraOCRProcessor:
             dpi: PDF 렌더링 해상도
         """
         self.api_base = api_base or os.getenv("VLM_API_BASE", "http://localhost:8080/v1")
-        self.model_name = model_name or os.getenv("VLM_MODEL_NAME", "chandra")
+        self.model_name = model_name or os.getenv("VLM_MODEL_NAME", "qwen3-vl")
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.dpi = dpi

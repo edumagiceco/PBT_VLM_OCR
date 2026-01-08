@@ -87,8 +87,8 @@ async def get_processing_queue(
                 id=doc.id,
                 title=doc.title,
                 original_filename=doc.original_filename,
-                status=doc.status.value if doc.status else "pending",
-                ocr_mode=doc.ocr_mode.value if doc.ocr_mode else "auto",
+                status=doc.status.value if hasattr(doc.status, 'value') else (doc.status or "pending"),
+                ocr_mode=doc.ocr_mode.value if hasattr(doc.ocr_mode, 'value') else (doc.ocr_mode or "auto"),
                 page_count=doc.page_count or 0,
                 file_size=doc.file_size,
                 created_at=doc.created_at,
@@ -218,7 +218,7 @@ async def update_block(
 @router.get("/{document_id}/download")
 async def download_document(
     document_id: int,
-    format: str = Query("md", regex="^(md|json|html)$"),
+    format: str = Query("md", pattern="^(md|json|html)$"),
     db: Session = Depends(get_db),
 ):
     """문서 다운로드 (md/json/html)"""

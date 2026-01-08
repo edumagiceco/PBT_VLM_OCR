@@ -28,43 +28,48 @@ def upgrade() -> None:
     # 현재 enum: GENERAL, PRECISION, AUTO (대문자)
     # 새로운 enum: fast, accurate, precision, auto (소문자)
 
-    # 1. 새로운 값 추가 (소문자)
-    op.execute("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'fast'")
-    op.execute("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'accurate'")
-    op.execute("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'precision'")
-    op.execute("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'auto'")
+    # PostgreSQL에서 새 enum 값은 커밋 후에만 사용 가능
+    # autocommit 모드에서 실행하기 위해 connection을 직접 사용
+    connection = op.get_bind()
+
+    # 1. 새로운 값 추가 (소문자) - autocommit 모드로 실행
+    connection.execute(sa.text("COMMIT"))
+    connection.execute(sa.text("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'fast'"))
+    connection.execute(sa.text("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'accurate'"))
+    connection.execute(sa.text("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'precision'"))
+    connection.execute(sa.text("ALTER TYPE ocrmode ADD VALUE IF NOT EXISTS 'auto'"))
 
     # 2. 기존 대문자 값을 소문자로 변환
-    op.execute("""
+    connection.execute(sa.text("""
         UPDATE documents
         SET ocr_mode = 'fast'
         WHERE ocr_mode::text = 'GENERAL'
-    """)
-    op.execute("""
+    """))
+    connection.execute(sa.text("""
         UPDATE documents
         SET ocr_mode = 'precision'
         WHERE ocr_mode::text = 'PRECISION'
-    """)
-    op.execute("""
+    """))
+    connection.execute(sa.text("""
         UPDATE documents
         SET ocr_mode = 'auto'
         WHERE ocr_mode::text = 'AUTO'
-    """)
-    op.execute("""
+    """))
+    connection.execute(sa.text("""
         UPDATE documents
         SET recommended_ocr_mode = 'fast'
         WHERE recommended_ocr_mode::text = 'GENERAL'
-    """)
-    op.execute("""
+    """))
+    connection.execute(sa.text("""
         UPDATE documents
         SET recommended_ocr_mode = 'precision'
         WHERE recommended_ocr_mode::text = 'PRECISION'
-    """)
-    op.execute("""
+    """))
+    connection.execute(sa.text("""
         UPDATE documents
         SET recommended_ocr_mode = 'auto'
         WHERE recommended_ocr_mode::text = 'AUTO'
-    """)
+    """))
 
 
 def downgrade() -> None:
